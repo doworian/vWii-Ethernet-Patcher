@@ -27,10 +27,10 @@ static const u8 pat_mov_pid[] = { 0xE3, 0xA0, 0x3C, 0x77 };
 static const u8 pat_rxctrl_b[] = { 0xE3,0xA0,0x1F,0x86, 0xEA,0xFF,0xFF,0x8C };
 static const u8 pat_rxctrl_b_old[] = { 0xE3,0xA0,0x1F,0x46, 0xEA,0xFF,0xFF,0x8C };
 static const u8 pat_rxctrl_b_new[] = { 0xE3,0xA0,0x10,0x18, 0xEA,0xFF,0xFF,0x8C };
-// rxctrl C - MOV R1, #0x318
+// rxctrl C - MOV R1, #0x318 -> #0x118 (clear bits [10:9] only, preserve bit 8)
 static const u8 pat_rxctrl_c[] = { 0xE3,0xA0,0x1F,0xC6 };
-static const u8 pat_rxctrl_c_old[] = { 0xE3,0xA0,0x1F,0x46 };
-static const u8 pat_rxctrl_c_new[] = { 0xE3,0xA0,0x10,0x18 };
+static const u8 pat_rxctrl_c_old[] = { 0xE3,0xA0,0x10,0x18 };
+static const u8 pat_rxctrl_c_new[] = { 0xE3,0xA0,0x1F,0x46 };
 
 // swrst init - set IPOSC bit, 0x44 -> 0xC4
 static const u8 pat_swrst_init[] = { 0xE5,0x9A,0x00,0x00, 0xE3,0xA0,0x10,0x44 };
@@ -199,8 +199,8 @@ s32 patch_thumb_ethernet(IOS *ios)
     u32 size = (u32)cr[eth].size;
     int applied = 0, existing = 0;
 
-    r = patch_block(buf, size, pat_ios58_rxc_318, pat_ios58_rxc_018, sizeof(pat_ios58_rxc_318), "rxctrl EHC");
-    if (r < 0) r = patch_block(buf, size, pat_ios58_rxc_118, pat_ios58_rxc_018, sizeof(pat_ios58_rxc_118), "rxctrl EHC (fix 0x118)");
+    r = patch_block(buf, size, pat_ios58_rxc_318, pat_ios58_rxc_118, sizeof(pat_ios58_rxc_318), "rxctrl EHC");
+    if (r < 0) r = patch_block(buf, size, pat_ios58_rxc_018, pat_ios58_rxc_118, sizeof(pat_ios58_rxc_018), "rxctrl EHC (fix 0x018)");
     if (r < 0) return -1;
     if (r == 0) applied++; else existing++;
 

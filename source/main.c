@@ -37,6 +37,7 @@ extern s32 install_IOS(IOS *ios, bool skipticket);
 
 static u16 detected_pid = 0;
 static u16 detected_bcd = 0;
+static bool skip_adapter_check = false;
 
 static void detect_adapter(void)
 {
@@ -235,9 +236,9 @@ static void network_test(void)
         s32 net = -1;
         for (int t = 0; t < 50; t++) {
             net = net_init();
-            if (net == 0 || net != -11) break;
+            if (net == 0) break;
             if (t % 5 == 0) printf(".");
-            usleep(100000);
+            usleep(200000);
         }
 
         if (net < 0) {
@@ -415,7 +416,8 @@ int main(int argc, char *argv[])
     u32 pressed = 0;
 
     for (;;) {
-        detect_adapter();
+        if (!skip_adapter_check)
+            detect_adapter();
 
         printf("\x1B[2J\x1B[H");
         printf("=== vWii Ethernet Patcher ===\n\n");
@@ -425,8 +427,11 @@ int main(int argc, char *argv[])
         printf("[B]     Test network\n");
         printf("[HOME]  Exit\n\n");
 
-        draw_patch_line();
-        draw_adapter_status();
+        if (!skip_adapter_check) {
+            draw_patch_line();
+            draw_adapter_status();
+        }
+        skip_adapter_check = false;
         printf("\x1B[8;0H");
 
         pressed = 0;
@@ -488,10 +493,14 @@ int main(int argc, char *argv[])
 
         if (pressed == WPAD_BUTTON_B) {
             network_test();
-            PatchIOS(true);
-            usleep(1000);
-            ISFS_Initialize();
-            Init_SD();
+            if (*(vu32 *)0xCD800064 == 0xFFFFFFFF) {
+                Patch_AHB();
+                PatchIOS(true);
+                usleep(1000);
+                ISFS_Initialize();
+                Init_SD();
+            }
+            skip_adapter_check = true;
             continue;
         }
 
@@ -511,7 +520,7 @@ int main(int argc, char *argv[])
         u32 failed_ios[ETH_IOS_COUNT];
 
         printf("\x1B[2J\x1B[H");
-        printf("Patching IOS for %s... (0/%d)", adapter_name(), total);
+        printf("Patching all relevant IOS's... (0/%d)\n\n", total);
 
         for (u32 i = 0; i < ETH_IOS_COUNT; i++) {
             ret = mode_772d ? do_patch_772d_and_install(eth_ios[i])
@@ -522,8 +531,8 @@ int main(int argc, char *argv[])
             else failed_ios[failed++] = eth_ios[i];
 
             int done = patched + skipped + failed;
-            printf("\x1B[1;1H");
-            printf("Patching IOS for %s... (%d/%d)", adapter_name(), done, total);
+            printf("\x1B[2J\x1B[H");
+            printf("Patching all relevant IOS's... (%d/%d)\n\n", done, total);
         }
 
         printf("\x1B[2J\x1B[H");
@@ -541,6 +550,11 @@ int main(int argc, char *argv[])
 
         printf("\nPress any button to continue.\n");
         waitforbuttonpress(NULL, NULL);
+
+        PatchIOS(true);
+        usleep(1000);
+        ISFS_Initialize();
+        Init_SD();
     }
 
     Close_SD();
